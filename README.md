@@ -23,6 +23,10 @@ LLM API（初期使用 DeepSeek）
 本仓库已由 Vite 创建 React + TypeScript 前端，并初始化 Tauri 2。Tauri 使用 Vite 开发服务器 `http://localhost:5173`，生产前端资源目录为 `dist`。
 
 - [x] React 聊天界面原型
+- [x] 顶部栏、左侧栏与右侧聊天区的分区布局
+- [x] 顶栏品牌头像与名称
+- [x] 聊天消息列表和底部输入框
+- [x] 消息区域独立滚动，输入区固定在聊天区底部
 - [x] Tauri 桌面窗口可运行
 - [x] React 通过 `invoke` 调用 Rust 命令
 - [x] Rust 命令调用 DeepSeek Chat Completions API
@@ -31,6 +35,8 @@ LLM API（初期使用 DeepSeek）
 - [ ] 流式响应
 
 当前已支持非流式 DeepSeek 对话；暂未实现重试、流式传输、对话历史或结构化输出。
+
+项目阶段性完成记录见 [docs/2026-10-16-project-progress.md](./docs/2026-10-16-project-progress.md)。
 
 ### 启动桌面开发版
 
