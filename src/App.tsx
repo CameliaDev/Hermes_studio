@@ -115,6 +115,15 @@ function App() {
               <textarea
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
+                onKeyDown={(event) => {
+                  // 检查是否按下了 Enter 键，且不是 Shift+Enter
+                  if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                    // 阻止默认提交行为
+                    event.preventDefault()
+                    // 触发提交事件
+                    event.currentTarget.form?.requestSubmit()
+                  }
+                }}
                 placeholder="给 Hermes 发消息…"
               />
 
