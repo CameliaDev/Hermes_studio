@@ -57,8 +57,28 @@
   min-height: 0;
 }
 
+
+.chat-user {
+  /*将框放在最下面*/
+  margin-top: auto;
+  height: 10%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  /* gap: 12px; */
+  /*边框*/
+  border: 1px solid #5c45a0;
+  /*最下方*/
+  /* margin-bottom: 12px; */
+}
+
 .sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   flex: 0 0 240px;
+  min-height: 0;
+  padding: 16px 12px;
   border-right: 1px solid #eeeef1;
   background: #faf9fc;
   /*加边框*/
@@ -68,8 +88,51 @@
 
 }
 
+.search-box input {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid #e5e3eb;
+  border-radius: 8px;
+}
+
+.new-conversation-button,
+.conversation-item {
+  width: 100%;
+  padding: 9px 10px;
+  color: #383541;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.new-conversation-button {
+  border: 1px solid #e5e3eb;
+  background: #fff;
+}
+
+.conversation-item:hover,
+.conversation-item-selected {
+  background: #eee9ff;
+}
+
+.chat-list {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.chat-list ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .composer {
   display: flex;
+  width: 100%;
   align-items: flex-end;
   gap: 8px;
   padding: 8px;
@@ -82,6 +145,7 @@
   width: 90%;
   margin-inline: auto;
   flex: 0 0 auto;
+  padding: 12px 0 20px;
 }
 
 .message-area {
@@ -92,8 +156,60 @@
   background: #fff;
 }
 
+.message {
+  margin: 0 auto 20px;
+  width: min(90%, 760px);
+}
+
+.message p {
+  margin: 6px 0 0;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.empty-chat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.empty-chat img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+
+.empty-chat h2,
+.empty-chat p {
+  margin: 0;
+}
+
+.empty-chat p {
+  color: #777580;
+}
+
+.chat-workspace-empty {
+  justify-content: center;
+}
+
+.chat-workspace-empty .message-area {
+  flex: 0 1 auto;
+  overflow: visible;
+}
+
+.chat-workspace-empty .composer-area {
+  padding-top: 0;
+}
+
 .composer textarea {
   flex: 1;
+  min-width: 0;
+  min-height: 64px;
+  resize: vertical;
   border: 0;
   outline: 0;
 }

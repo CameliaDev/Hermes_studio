@@ -30,13 +30,15 @@ LLM API（初期使用 DeepSeek）
 - [x] Tauri 桌面窗口可运行
 - [x] React 通过 `invoke` 调用 Rust 命令
 - [x] Rust 命令调用 DeepSeek Chat Completions API
+- [x] Rust 通过 Tauri Channel 向 React 传输流式文本片段
+- [x] React 将收到的文本片段追加到同一条助手消息
 - [x] 将请求错误显示在聊天界面
 - [x] HTTP 请求 60 秒超时
-- [ ] 流式响应
+- [x] 在 Tauri 桌面端确认流式回答逐段显示
 
-当前已支持非流式 DeepSeek 对话；暂未实现重试、流式传输、对话历史或结构化输出。
+流式传输已接入 DeepSeek SSE、Rust 和 React，并已在 Tauri 桌面端完成实际对话验证。暂未实现重试、对话历史或结构化输出。
 
-项目阶段性完成记录见 [docs/2026-10-16-project-progress.md](./docs/2026-10-16-project-progress.md)。
+项目阶段性记录见 [docs/2026-10-16-project-progress.md](./docs/2026-10-16-project-progress.md) 和 [docs/2026-10-17-streaming-progress.md](./docs/2026-10-17-streaming-progress.md)。版本变更见 [CHANGELOG.md](./CHANGELOG.md)。
 
 ### 启动桌面开发版
 
@@ -77,9 +79,8 @@ VS Code 推荐安装 Rust Analyzer 和 Prettier 扩展。Rust 格式化使用 ru
 
 后续可逐步实现：
 
-1. **流式响应**：通过 Tauri Channel 将文本片段逐步发送到 React，支持即时显示。
-2. **稳定性**：增加有限重试和 Rust 单元测试。
-3. **扩展功能**：对话历史、停止生成、多模型配置和安装包。
+1. **稳定性**：增加有限重试和 Rust 单元测试。
+2. **扩展功能**：对话历史、停止生成、多模型配置和安装包。
 
 ## 配置与密钥
 

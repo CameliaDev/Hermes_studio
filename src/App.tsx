@@ -1,47 +1,125 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { invoke, isTauri } from '@tauri-apps/api/core'
+import { Channel, invoke, isTauri } from '@tauri-apps/api/core'
 import hermesAvatar from './assets/hermes-avatar.webp'
 import './App.css'
-
 // 定义消息类型
 type Message = {
   id: number
   role: 'user' | 'assistant'
-  // 消息内容
   content: string
 }
 
+type Conversation = {
+  id: number
+  title: string
+  messages: Message[]
+}
+
+const EMPTY_MESSAGES: Message[] = []
+
 /// 应用主组件
 function App() {
-  /// 消息列表
-  const [messages, setMessages] = useState<Message[]>([])
-  /// 输入框内容
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [selectedConversationId, setSelectedConversationId] =
+    useState<number | null>(null)
   const [input, setInput] = useState('')
-  /// 是否正在发送消息
   const [isSending, setIsSending] = useState(false)
-  /// 消息列表滚动到最新消息
+  const [sendingConversationId, setSendingConversationId] = useState<
+    number | null
+  >(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const messageEndRef = useRef<HTMLDivElement>(null)
-  /// 消息列表滚动到最新消息
-  /// 每次消息列表更新时，滚动到最新消息
-  /// 这可以确保用户总能看到最新的对话内容
+
+  const selectedConversation = conversations.find(
+    (conversation) => conversation.id === selectedConversationId,
+  )
+  const messages = selectedConversation?.messages ?? EMPTY_MESSAGES
+  const isEmptyConversation = messages.length === 0
+  const filteredConversations = conversations.filter((conversation) =>
+    conversation.title.toLowerCase().includes(searchQuery.trim().toLowerCase()),
+  )
+
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  }, [messages, selectedConversationId, isSending])
+
+  function appendMessage(conversationId: number, message: Message) {
+    setConversations((current) =>
+      current.map((conversation) =>
+        conversation.id === conversationId
+          ? { ...conversation, messages: [...conversation.messages, message] }
+          : conversation,
+      ),
+    )
+  }
+
+  // 按会话 ID 和消息 ID 定位助手消息，并追加新收到的文本片段。
+  function appendToMessage(
+    conversationId: number,
+    messageId: number,
+    chunk: string,
+  ) {
+    setConversations((current) =>
+      current.map((conversation) =>
+        conversation.id === conversationId
+          ? {
+              ...conversation,
+              messages: conversation.messages.map((message) =>
+                message.id === messageId
+                  ? { ...message, content: message.content + chunk }
+                  : message,
+              ),
+            }
+          : conversation,
+      ),
+    )
+  }
+
+  function handleNewConversation() {
+    setSelectedConversationId(null)
+    setInput('')
+  }
 
   /// 提交表单处理函数
-  /// 处理用户提交的消息
-  /// 如果输入框为空或正在发送消息，不执行任何操作
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const prompt = input.trim()
     if (!prompt || isSending) return
 
-    setMessages((current) => [
-      ...current,
-      { id: Date.now(), role: 'user', content: prompt },
-    ])
+    const userMessageId = Date.now()
+    const conversationId = selectedConversationId ?? userMessageId
+    const assistantMessageId = userMessageId + 1
+    const userMessage: Message = {
+      id: userMessageId,
+      role: 'user',
+      content: prompt,
+    }
+    // 先创建空的助手消息，后续每个流式片段都会追加到这里。
+    const assistantMessage: Message = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+    }
+
+    if (selectedConversationId === null) {
+      setConversations((current) => [
+        ...current,
+        {
+          id: conversationId,
+          title: prompt.slice(0, 40),
+          messages: [userMessage, assistantMessage],
+        },
+      ])
+      setSelectedConversationId(conversationId)
+    } else {
+      appendMessage(conversationId, userMessage)
+      appendMessage(conversationId, assistantMessage)
+    }
+
     setInput('')
     setIsSending(true)
+    setSendingConversationId(conversationId)
+
     try {
       if (!isTauri()) {
         throw new Error(
@@ -49,26 +127,24 @@ function App() {
         )
       }
 
+      // Rust 每发送一个片段，就在这里追加到刚创建的助手消息。
+      const onEvent = new Channel<string>()
+      onEvent.onmessage = (chunk) => {
+        appendToMessage(conversationId, assistantMessageId, chunk)
+      }
 
-
-      // 调用 Tauri 后端命令，获取回复
-      const reply = await invoke<string>('chat', { prompt })
-      setMessages((current) => [
-        ...current,
-        { id: Date.now() + 1, role: 'assistant', content: reply },
-      ])
+      // 回答通过 Channel 分段传回，因此命令本身不返回完整字符串。
+      await invoke<void>('chat', { prompt, onEvent })
     } catch (error) {
       console.error('调用 chat 命令失败:', error)
-      setMessages((current) => [
-        ...current,
-        {
-          id: Date.now() + 1,
-          role: 'assistant',
-          content: `请求失败：${String(error)}`,
-        },
-      ])
+      appendToMessage(
+        conversationId,
+        assistantMessageId,
+        `请求失败：${String(error)}`,
+      )
     } finally {
       setIsSending(false)
+      setSendingConversationId(null)
     }
   }
 
@@ -87,27 +163,89 @@ function App() {
       <div className="app-body">
         {/* 区域二：左侧栏 */}
         <aside className="sidebar">
-          {/* 侧边栏内容 */}
+          <div className="search-box">
+            <input
+              aria-label="搜索会话"
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="搜索会话"
+              type="search"
+              value={searchQuery}
+            />
+          </div>
+
+          <button
+            className="new-conversation-button"
+            onClick={handleNewConversation}
+            type="button"
+          >
+            + 新建对话
+          </button>
+
+          <div className="chat-list">
+            <ul>
+              {filteredConversations.map((conversation) => (
+                <li key={conversation.id}>
+                  <button
+                    aria-current={
+                      conversation.id === selectedConversationId
+                        ? 'page'
+                        : undefined
+                    }
+                    className={
+                      conversation.id === selectedConversationId
+                        ? 'conversation-item conversation-item-selected'
+                        : 'conversation-item'
+                    }
+                    onClick={() => {
+                      setSelectedConversationId(conversation.id)
+                      setInput('')
+                    }}
+                    type="button"
+                  >
+                    {conversation.title}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="chat-user">
+
+
+          </div>
         </aside>
 
-        {/* 区域三：右侧聊天区 */}
-        <section className="chat-workspace" aria-label="聊天区域">
-          {/* 聊天内容和输入框 */}
+        <section
+          className={
+            isEmptyConversation
+              ? 'chat-workspace chat-workspace-empty'
+              : 'chat-workspace'
+          }
+          aria-label="聊天区域"
+        >
           <div className="message-area">
-            {/* 聊天消息显示在这里 */}
-            {messages.map((message) => (
-              <article
-                className={`message message-${message.role}`}
-                key={message.id}
-              >
-                <strong>{message.role === 'user' ? '你' : 'Hermes'}</strong>
-                <p>{message.content}</p>
-              </article>
-            ))}
+            {isEmptyConversation ? (
+              <div className="empty-chat">
+                <img src={hermesAvatar} alt="" />
+                <h2>有什么可以帮你？</h2>
+                <p>输入消息，开始一段新的对话。</p>
+              </div>
+            ) : (
+              messages.map((message) => (
+                <article
+                  className={`message message-${message.role}`}
+                  key={message.id}
+                >
+                  <strong>{message.role === 'user' ? '你' : 'Hermes'}</strong>
+                  <p>{message.content}</p>
+                </article>
+              ))
+            )}
 
-            {isSending && <p role="status">Hermes 正在回复…</p>}
-
-            {/*-----------------*/}
+            {isSending &&
+              selectedConversationId === sendingConversationId && (
+                <p role="status">Hermes 正在回复…</p>
+              )}
+            <div ref={messageEndRef} />
           </div>
 
           <footer className="composer-area">
@@ -117,7 +255,11 @@ function App() {
                 onChange={(event) => setInput(event.target.value)}
                 onKeyDown={(event) => {
                   // 检查是否按下了 Enter 键，且不是 Shift+Enter
-                  if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                  if (
+                    event.key === 'Enter' &&
+                    !event.shiftKey &&
+                    !event.nativeEvent.isComposing
+                  ) {
                     // 阻止默认提交行为
                     event.preventDefault()
                     // 触发提交事件
@@ -133,8 +275,8 @@ function App() {
             </form>
           </footer>
         </section>
-      </div>
-    </main>
+      </div >
+    </main >
   )
 }
 export default App
